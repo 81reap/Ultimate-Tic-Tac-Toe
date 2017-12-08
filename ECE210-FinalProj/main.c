@@ -13,7 +13,7 @@
 #define BOARD_SIZE 9
 //board states
 #define SPACE 0
-#define DRAW 3
+#define TIE 3
 #define X 1
 #define O 2
 
@@ -26,6 +26,8 @@ int x_min = 0;	//limits for what board can be selected
 int x_max = 8;	//  initially any postion is allowed
 int y_min = 0;
 int y_max = 8;
+int x_cursor = 0;
+int y_cursor = 0;
 
 //draw board
 void drawBoard(int board[BOARD_SIZE][BOARD_SIZE]){
@@ -38,7 +40,7 @@ void drawBoard(int board[BOARD_SIZE][BOARD_SIZE]){
 					ece210_lcd_print_string("X  ", X_MAX_DRAW-X_SPACING*(row+0.5), Y_MAX_DRAW-Y_SPACING*(2*column+1), LCD_COLOR_BLUE2, LCD_COLOR_BLACK);
 				} else if(board[column][row] == O) {
 					ece210_lcd_print_string("O  ", X_MAX_DRAW-X_SPACING*(row+0.5), Y_MAX_DRAW-Y_SPACING*(2*column+1), LCD_COLOR_MAGENTA, LCD_COLOR_BLACK);
-				} else if(board[column][row] == DRAW) {
+				} else if(board[column][row] == TIE) {
 					ece210_lcd_print_string(" ~  ", X_MAX_DRAW-X_SPACING*(row+0.5), Y_MAX_DRAW-Y_SPACING*(2*column+1), LCD_COLOR_GREEN2, LCD_COLOR_BLACK);
 				}
 			}else{
@@ -48,7 +50,7 @@ void drawBoard(int board[BOARD_SIZE][BOARD_SIZE]){
 					ece210_lcd_print_string("X |", X_MAX_DRAW-X_SPACING*(row+0.5), Y_MAX_DRAW-Y_SPACING*(2*column+1), LCD_COLOR_BLUE2, LCD_COLOR_BLACK);
 				} else if(board[column][row] == O) {
 					ece210_lcd_print_string("O |", X_MAX_DRAW-X_SPACING*(row+0.5), Y_MAX_DRAW-Y_SPACING*(2*column+1), LCD_COLOR_MAGENTA, LCD_COLOR_BLACK);
-				} else if(board[column][row] == DRAW) {
+				} else if(board[column][row] == TIE) {
 					ece210_lcd_print_string(" ~ |", X_MAX_DRAW-X_SPACING*(row+0.5), Y_MAX_DRAW-Y_SPACING*(2*column+1), LCD_COLOR_GREEN2, LCD_COLOR_BLACK);
 				}
 			}
@@ -66,28 +68,54 @@ void drawBoard(int board[BOARD_SIZE][BOARD_SIZE]){
 }
 
 //move cursor left/right
-int update_x(int x_cursor, int y_cursor, int board[BOARD_SIZE][BOARD_SIZE]){
+void update_x(int* x_cursor, int* y_cursor, int board[BOARD_SIZE][BOARD_SIZE]){
 	int x = ece210_ps2_read_x();
   
 	// move left if possible
-  if((x >= PS2_THRESHOLD_X_HI) && ( x_cursor > 0 )){
-		for(int row = x_cursor-1; row > x_min-1; row--){
-			if(board[y_cursor][row] == SPACE){
+  if((x >= PS2_THRESHOLD_X_HI) && ( *x_cursor > 0 )){
+		// check for open spot in row
+		for(int row = *x_cursor-1; row > x_min-1; row--){
+			if(board[*y_cursor][row] == SPACE){
 				boardStateChanged = true;
-				return  row;
+				*x_cursor = row;
+				return;
 			}
 		}
+		
+		//check for next open spot
+		/*for(int column = y_cursor; column < y_max+1; column++){
+			for(int row = x_max; row > x_min-1; row--){
+				if(board[column][row] == SPACE){
+					boardStateChanged = true;
+					x_cursor = row;
+					y_cursor = column;
+					return;
+				}
+			}
+		}*/
 	// move right if possible
-  }else if ( (x <= PS2_THRESHOLD_X_LO) && ( x_cursor < BOARD_SIZE-1) ){
-		for(int row = x_cursor+1; row < x_max+1; row++){
-			if(board[y_cursor][row] == SPACE){
+  }else if ( (x <= PS2_THRESHOLD_X_LO) && ( *x_cursor < BOARD_SIZE-1) ){
+		// check for open spot in row
+		for(int row = *x_cursor+1; row < x_max+1; row++){
+			if(board[*y_cursor][row] == SPACE){
 				boardStateChanged = true;
-				return  row;
+				*x_cursor = row;
+				return;
 			}
 		}
+		
+		//check for next open spot
+		/*for(int column = y_cursor; column > y_min-1; column--){
+			for(int row = x_max; row > x_min-1; row--){
+				if(board[column][row] == SPACE){
+					boardStateChanged = true;
+					x_cursor = row;
+					y_cursor = column;
+					return;
+				}
+			}
+		}*/
 	}
-	// no change
-  return x_cursor;
 }
 
 //move cursor up/down
@@ -102,7 +130,6 @@ int update_y(int x_cursor, int y_cursor, int board[BOARD_SIZE][BOARD_SIZE]){
 				return column ;
 			}
 		}
-		//return ++y_cursor;
 		
 	// move up if possible
   }else if ( (y >= PS2_THRESHOLD_Y_HI) && ( y_cursor > 0) ){
@@ -112,10 +139,9 @@ int update_y(int x_cursor, int y_cursor, int board[BOARD_SIZE][BOARD_SIZE]){
 				return column ;
 			}
 		}
-		//return --y_cursor;
 	}
-	// no change
-  return y_cursor;
+	
+	return y_cursor;
 }
 
 //empty the screen
@@ -128,11 +154,37 @@ void clearScreen(){
 bool isStillPlayed(int board[BOARD_SIZE][BOARD_SIZE]){
 	for(int column = y_min; column < y_max+1; column++){
 		for(int row = x_min; row < x_max+1; row++){
-			if(board[column][row] != board[0][0])
+			if(board[column][row] == SPACE)
 				return true;
 		}
 	}
 	return false;
+}
+
+int isBoardWin(int board[BOARD_SIZE][BOARD_SIZE]){
+	//Chck horizontal wins
+	for(int row = x_min; row < x_max+1; row++){
+		if(board[y_min][row] != SPACE && board[y_min][row] == board[y_min+1][row] && board[y_min+1][row] == board[y_min+2][row]){
+			return board[y_min][row];
+		}
+	}
+	
+	//check vertical wins
+	for(int column = y_min; column < y_max+1; column++){
+		if(board[column][x_min] != SPACE && board[column][x_min] == board[column][x_min+1] && board[column][x_min+1] == board[column][x_min+2]){
+			return board[column][x_min];
+		}
+	}
+	
+	//check diagonals
+	if(board[y_min][x_min] != SPACE && board[y_min][x_min] == board[y_min+1][x_min+1] && board[y_min+1][x_min+1] == board[y_min+2][x_min+2]){
+		return board[y_min][x_min];
+	}
+	if(board[y_min][x_max] != SPACE && board[y_min][x_max] == board[y_min+1][x_max-1] && board[y_min+1][x_max-1] == board[y_min+2][x_max-2]){
+		return board[y_min][x_max];
+	}
+	
+	return 0;
 }
 
 int main(void){
@@ -146,8 +198,6 @@ int main(void){
 		}
 	}
 	
-	int x_cursor = 0;
-	int y_cursor = 0;
 	int playerTurn = 0; // 0 = player 1 (X), 1 = player 2 (O)
 	
 	while(1){
@@ -177,7 +227,7 @@ int main(void){
 		
 			//move cursor
 			// update x
-			x_cursor = update_x(x_cursor, y_cursor, board);
+			update_x(&x_cursor, &y_cursor, board);
 			// update y
 			y_cursor = update_y(x_cursor, y_cursor, board);
 			
@@ -194,6 +244,55 @@ int main(void){
 					} else{
 						board[y_cursor][x_cursor] = X;
 						playerTurn = 1;
+					}
+					
+					//resets limits of at global board
+					
+					if(x_min == 0 && x_max == 8){
+						if(x_cursor < 3){
+							x_min = 0;
+							x_max = 2;
+						} else if(x_cursor < 6) {
+							x_min = 3;
+							x_max = 5;
+						} else {
+							x_min = 6;
+							x_max = 8;
+						}
+						
+						if(y_cursor < 3){
+							y_min = 0;
+							y_max = 2;
+						} else if(y_cursor <5){
+							y_min = 3;
+							y_max = 5;
+						} else {
+							y_min = 6;
+							y_max = 8;
+						}
+					}
+					
+					//checks to set new board state
+					int winner = isBoardWin(board);
+					if(winner != 0){
+						
+						
+						//sets board as a win state
+						for(int column = y_min; column < y_max+1; column++){
+							for(int row = x_min; row < x_max+1; row++){
+								board[column][row] = winner;
+							}
+						}
+						
+						//checks the overall board
+					//check if the board is a tie
+					} else if(!isStillPlayed(board)) {
+						//sets board as a tie state
+						for(int column = y_min; column < y_max+1; column++){
+							for(int row = x_min; row < x_max+1; row++){
+								board[column][row] = TIE;
+							}
+						}
 					}
 					
 					//set new limits
@@ -213,14 +312,14 @@ int main(void){
 					
 					//set cursor to open positon
 					for(int column = y_min; column < y_max+1; column++){
-							for(int row = x_min; row < x_max+1; row++){
-								if(board[column][row] == SPACE){
-									y_cursor = column;
-									x_cursor = row;
-									break;
-								}
+						for(int row = x_min; row < x_max+1; row++){
+							if(board[column][row] == SPACE){
+								y_cursor = column;
+								x_cursor = row;
+								break;
 							}
 						}
+					}
 				}
 			}
 		} //else if(gameState == 'O'){ // Game Over
