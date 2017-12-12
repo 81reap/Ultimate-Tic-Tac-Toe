@@ -2,11 +2,9 @@
 // main.c
 // Authors: Prayag Bhakar & Amanda Emerson
 //*****************************************************************************
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // globals
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 #include "ece210_api.h"
 #include "lab_buttons.h"
 
@@ -21,7 +19,10 @@
 #define TIE 3
 #define X 1
 #define O 2
-
+//define colours for states
+#define TIE_COLOUR LCD_COLOR_BLUE2
+#define X_COLOUR LCD_COLOR_GREEN
+#define O_COLOUR LCD_COLOR_ORANGE
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // subfunctions
@@ -44,19 +45,19 @@ void drawBoard(int board[BOARD_SIZE][BOARD_SIZE]){
 					ece210_lcd_print_string("X  ", 
 						X_MAX_DRAW-X_SPACING*(row+0.5), 
 						Y_MAX_DRAW-Y_SPACING*(2*column+1), 
-						LCD_COLOR_BLUE2, 
+						X_COLOUR, 
 						LCD_COLOR_BLACK);
 				} else if(board[column][row] == O) {
 					ece210_lcd_print_string("O  ", 
 						X_MAX_DRAW-X_SPACING*(row+0.5), 
 						Y_MAX_DRAW-Y_SPACING*(2*column+1), 
-						LCD_COLOR_MAGENTA, 
+						O_COLOUR, 
 						LCD_COLOR_BLACK);
 				} else if(board[column][row] == TIE) {
 					ece210_lcd_print_string(" ~  ", 
 						X_MAX_DRAW-X_SPACING*(row+0.5), 
 						Y_MAX_DRAW-Y_SPACING*(2*column+1), 
-						LCD_COLOR_GREEN2, 
+						TIE_COLOUR, 
 						LCD_COLOR_BLACK);
 				}
 			// regular draw. This includes dividers
@@ -71,19 +72,19 @@ void drawBoard(int board[BOARD_SIZE][BOARD_SIZE]){
 					ece210_lcd_print_string("X |", 
 						X_MAX_DRAW-X_SPACING*(row+0.5), 
 						Y_MAX_DRAW-Y_SPACING*(2*column+1), 
-						LCD_COLOR_BLUE2, 
+						X_COLOUR, 
 						LCD_COLOR_BLACK);
 				} else if(board[column][row] == O) {
 					ece210_lcd_print_string("O |", 
 						X_MAX_DRAW-X_SPACING*(row+0.5), 
 						Y_MAX_DRAW-Y_SPACING*(2*column+1), 
-						LCD_COLOR_MAGENTA, 
+						O_COLOUR, 
 						LCD_COLOR_BLACK);
 				} else if(board[column][row] == TIE) {
 					ece210_lcd_print_string(" ~ |", 
 						X_MAX_DRAW-X_SPACING*(row+0.5), 
 						Y_MAX_DRAW-Y_SPACING*(2*column+1), 
-						LCD_COLOR_GREEN2, 
+						TIE_COLOUR, 
 						LCD_COLOR_BLACK);
 				}
 			}
@@ -180,10 +181,10 @@ void update_y(int* x_cursor,
 	int* y_cursor, 
 	int board[BOARD_SIZE][BOARD_SIZE], 
 	bool* boardStateChanged, 
-	int *x_min, 
-	int *x_max, 
-	int *y_min, 
-	int *y_max){
+	int x_min, 
+	int x_max, 
+	int y_min, 
+	int y_max){
 
 	//get current y positon
 	int y = ece210_ps2_read_y();
@@ -200,8 +201,8 @@ void update_y(int* x_cursor,
 		}
 		
 		//check for next open spot
-		for(int row = *x_cursor+1; row < *x_max+1; row++){
-			for(int column = *y_min; column < *y_max+1; column++){
+		for(int row = *x_cursor+1; row < x_max+1; row++){
+			for(int column = y_min; column < y_max+1; column++){
 				if(board[column][row] == SPACE){
 					*boardStateChanged = true;
 					*x_cursor = row;
@@ -356,13 +357,15 @@ int checkOverallBoard(int board[BOARD_SIZE][BOARD_SIZE]){
 //	to clean up the main function. Requires a lot of pointers
 //
 char update_select(bool *boardStateChanged,
-	int *board[BOARD_SIZE][BOARD_SIZE], 
+	int board[BOARD_SIZE][BOARD_SIZE], 
 	int *playerTurn,
 	int *x_min,
 	int *x_max,
 	int *y_min,
 	int *y_max,
-	){
+	int *y_cursor,
+	int *x_cursor,
+	int *winner){
 	// Alert button toggle to only count one button press
 	if(AlertButtons){
 		AlertButtons = false;
@@ -374,30 +377,30 @@ char update_select(bool *boardStateChanged,
 			
 			// mark postion and swtich players
 			if(*playerTurn){
-				*board[y_cursor][x_cursor] = O;
+				board[*y_cursor][*x_cursor] = O;
 				*playerTurn = 0;
 			} else{
-				*board[y_cursor][x_cursor] = X;
+				board[*y_cursor][*x_cursor] = X;
 				*playerTurn = 1;
 			}
 			
 			// resets limits if limits are at global board baised on cursor
 			if(*x_min == 0 && *x_max == 8){
-				if(x_cursor < 3){
+				if(*x_cursor < 3){
 					*x_min = 0;
 					*x_max = 2;
-				} else if(x_cursor < 6) {
+				} else if(*x_cursor < 6) {
 					*x_min = 3;
-					x_max = 5;
+					*x_max = 5;
 				} else {
-					x_min = 6;
-					x_max = 8;
+					*x_min = 6;
+					*x_max = 8;
 				}
 				
-				if(y_cursor < 3){
+				if(*y_cursor < 3){
 					*y_min = 0;
 					*y_max = 2;
-				} else if(y_cursor <5){
+				} else if(*y_cursor <5){
 					*y_min = 3;
 					*y_max = 5;
 				} else {
@@ -407,7 +410,7 @@ char update_select(bool *boardStateChanged,
 			}
 			
 			// checks to set new board state
-			if(isBoardWin(board, *x_min, x_max, *y_min, *y_max) != 0){
+			if(isBoardWin(board, *x_min, *x_max, *y_min, *y_max) != 0){
 				//sets board as a win state
 				for(int column = *y_min; column < *y_max+1; column++){
 					for(int row = *x_min; row < *x_max+1; row++){
@@ -429,22 +432,21 @@ char update_select(bool *boardStateChanged,
 			}
 			
 			// checks the overall board and sets game to Over
-			check = checkOverallBoard(*board);
-			if(checkOverallBoard(*board) != -1){
+			if(checkOverallBoard(board) != -1){
 				// change variables to match winner format
-				winner = checkOverallBoard(*board)-1;
-				gameState = 'O';
+				*winner = checkOverallBoard(board)-1;
+				return'O';
 			//check overall Board tie and sets game to Over
-			} else if(!isStillPlayed(*board, 0, 8, 0, 8)){
-				winner = 2;
-				gameState = 'O';
+			} else if(!isStillPlayed(board, 0, 8, 0, 8)){
+				*winner = 2;
+				return 'O';
 
 			// continiues on with the game normally
 			} else {
 				//set new limits
-				*x_min=3*(x_cursor%3);
+				*x_min=3*(*x_cursor%3);
 				*x_max=*x_min+2;
-				*y_min=3*(y_cursor%3);
+				*y_min=3*(*y_cursor%3);
 				*y_max=*y_min+2;
 				
 				// check of board is already played
@@ -460,8 +462,8 @@ char update_select(bool *boardStateChanged,
 				for(int column = *y_min; column < *y_max+1; column++){
 					for(int row = *x_min; row < *x_max+1; row++){
 						if(board[column][row] == SPACE){
-							y_cursor = column;
-							x_cursor = row;
+							*y_cursor = column;
+							*x_cursor = row;
 							break;
 						}
 					}
@@ -469,6 +471,7 @@ char update_select(bool *boardStateChanged,
 			}
 		}
 	}
+	return 'P';
 }
 
 
@@ -522,15 +525,25 @@ int main(void){
 			// print all instructions
 			ece210_lcd_add_msg("ULTIMATE TIC-TAC-TOE", 
 				TERMINAL_ALIGN_CENTER, 
+				LCD_COLOR_GREEN);
+			ece210_lcd_add_msg("", 
+				TERMINAL_ALIGN_LEFT, 
 				LCD_COLOR_WHITE);
-			ece210_lcd_add_msg("You are playing 9 games of Tic-Tac-Toe, each game being played like normal and then when one game is won, lost, or tied, it counts as an X or an O (or nothing in the case of a tie) in the bigger game of Tic-Tac-Toe. Player 1 (X) starts on a random smaller board Wherever player one places their \"X\" is where player 2 will have to play an \"O\" (so putting an X in the center of a board, means player 2's turn must be on the center board).", 
-				TERMINAL_ALIGN_CENTER, 
+			ece210_lcd_add_msg("You are playing 9 games of Tic-Tac-Toe, each game \
+				being played like normal. When one game is won, lost, or tied, it \
+				counts as an X, O, or nothing in the bigger game of Tic-Tac-Toe.", 
+				TERMINAL_ALIGN_LEFT, 
+				LCD_COLOR_WHITE);
+			ece210_lcd_add_msg("Player 1 (X) starts by picking any spot. What ever \
+				spot player one picks will determine which board player 2 will have \
+				to play.", 
+				TERMINAL_ALIGN_LEFT, 
 				LCD_COLOR_WHITE);
 			ece210_lcd_add_msg("Press down to play", 
 				TERMINAL_ALIGN_CENTER, 
-				LCD_COLOR_WHITE);
+				LCD_COLOR_ORANGE);
 
-			// switch gamestates so instructiosn don't print out again
+			// switch gamestates so instructions don't print out again
 			gameState = 'W';
 
 // Wait for play signal
@@ -589,13 +602,13 @@ int main(void){
 					ece210_lcd_print_string("*", 
 						X_MAX_DRAW-X_SPACING*(x_cursor+0.5), 
 						Y_MAX_DRAW-Y_SPACING*(2*y_cursor+1), 
-						LCD_COLOR_MAGENTA, 
+						O_COLOUR, 
 						LCD_COLOR_BLACK);
 				}else{
 					ece210_lcd_print_string("*", 
 						X_MAX_DRAW-X_SPACING*(x_cursor+0.5), 
 						Y_MAX_DRAW-Y_SPACING*(2*y_cursor+1), 
-						LCD_COLOR_BLUE2, 
+						X_COLOUR, 
 						LCD_COLOR_BLACK);
 				}
 
@@ -622,8 +635,16 @@ int main(void){
 				y_max);
 			
 			// slecting postion
-			update_select();
-		}
+			gameState = update_select(&boardStateChanged,
+				board, 
+				&playerTurn,
+				&x_min,
+				&x_max,
+				&y_min,
+				&y_max,
+				&y_cursor,
+				&x_cursor,
+				&winner);
 
 // game Over
 //============================================================================
@@ -632,18 +653,21 @@ int main(void){
 			if(winner == 0){
 				ece210_lcd_add_msg("X wins.", 
 					TERMINAL_ALIGN_CENTER, 
-					LCD_COLOR_WHITE);
+					X_COLOUR);
 			} else if (winner == 1){
 				ece210_lcd_add_msg("O wins.", 
 					TERMINAL_ALIGN_CENTER, 
-					LCD_COLOR_WHITE);
+					O_COLOUR);
 			} else if (winner == 2){
 				ece210_lcd_add_msg("It's a tie.", 
 					TERMINAL_ALIGN_CENTER, 
-					LCD_COLOR_WHITE);
+					TIE_COLOUR);
 			}
 
-			// print 
+			// print end message
+			ece210_lcd_add_msg("", 
+					TERMINAL_ALIGN_CENTER, 
+					LCD_COLOR_BLACK);
 			ece210_lcd_add_msg("Press down to play again", 
 				TERMINAL_ALIGN_CENTER, 
 				LCD_COLOR_WHITE);
