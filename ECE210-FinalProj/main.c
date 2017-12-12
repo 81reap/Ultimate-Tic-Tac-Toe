@@ -523,7 +523,7 @@ int main(void){
 			ece210_lcd_add_msg("ULTIMATE TIC-TAC-TOE", 
 				TERMINAL_ALIGN_CENTER, 
 				LCD_COLOR_WHITE);
-			ece210_lcd_add_msg("Xs go first.", 
+			ece210_lcd_add_msg("You are playing 9 games of Tic-Tac-Toe, each game being played like normal and then when one game is won, lost, or tied, it counts as an X or an O (or nothing in the case of a tie) in the bigger game of Tic-Tac-Toe. Player 1 (X) starts on a random smaller board Wherever player one places their \"X\" is where player 2 will have to play an \"O\" (so putting an X in the center of a board, means player 2's turn must be on the center board).", 
 				TERMINAL_ALIGN_CENTER, 
 				LCD_COLOR_WHITE);
 			ece210_lcd_add_msg("Press down to play", 
