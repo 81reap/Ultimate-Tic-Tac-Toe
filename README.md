@@ -4,7 +4,7 @@ E C E 210 Final Project
 # Licence
 BSD 3-Clause License
 
-Copyright (c) 2016, Prayag Bhakar (Hax0rDoge)
+Copyright (c) 2017, Prayag Bhakar
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
