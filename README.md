@@ -1,5 +1,7 @@
 # Ultimate-Tic-Tac-Toe
-E C E 210 Final Project
+ECE 210 Final Project, Creates a game of Ultimate Tic-Tac-Toe on Tiva C Series Launchpad and custom designed gameboard made by the ECE department.
+
+note: If you find yourself trying to expand upon the project, be careful of you handle memory. The Tiva board has a very limited amount of memory and was a big issue when developing this project.
 
 # Licence
 BSD 3-Clause License
